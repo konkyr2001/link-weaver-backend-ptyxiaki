@@ -21,8 +21,13 @@ mongoose
     console.error("Database connection error: ", error);
   });
 
+  app.use("/ping", (req, res) => {
+    res.send("pong");
+  });
 const sharedProjectRoutes = require("./routes/sharedProject");
+const userRoutes = require("./routes/user");
 app.use("/api/shared", sharedProjectRoutes);
+app.use("/api/user", userRoutes);
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });

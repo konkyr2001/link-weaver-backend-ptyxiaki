@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 const User = require("../models/User");
 const bcrypt = require("bcrypt");
+const { jwtDecode } = require("jwt-decode");
 const { verifyCaptcha } = require("../utils/verifyCaptcha");
 const { generateToken } = require("../utils/token");
 
@@ -25,8 +26,9 @@ router.post("/login", async (req, res) => {
   }
 });
 
-router.post("/", async (req, res) => {
+router.post("/signup", async (req, res) => {
   try {
+    console.log("signup");
     const { firstName, lastName, email, password, recaptcha } = req.body;
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -54,6 +56,36 @@ router.post("/", async (req, res) => {
     const token = generateToken(userObj._id);
     return res.status(201).json({ userObj, token });
   } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.post("/google", async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res
+        .status(401)
+        .json({ error: "Something went wrong with Google account" });
+    }
+    const userCredentials = jwtDecode(token.credential);
+    let existingUser = await User.findOne({ email: userCredentials.email });
+    if (!existingUser) {
+      const user = new User({
+        firstName: userCredentials.given_name,
+        lastName: userCredentials.family_name,
+        email: userCredentials.email,
+      });
+      await user.save();
+
+      console.log("saved");
+      existingUser = user.toObject();
+    }
+
+    const authToken = generateToken(existingUser._id);
+    return res.status(201).json({ userObj: existingUser, token: authToken });
+  } catch (error) {
+    console.log("mpike catch")
     return res.status(500).json({ error: error.message });
   }
 });

@@ -4,7 +4,7 @@ const User = require("../models/User");
 const bcrypt = require("bcrypt");
 const { jwtDecode } = require("jwt-decode");
 const { verifyCaptcha } = require("../utils/verifyCaptcha");
-const { generateToken } = require("../utils/token");
+const { generateToken, verifyToken } = require("../utils/token");
 
 router.post("/login", async (req, res) => {
   try {
@@ -28,7 +28,6 @@ router.post("/login", async (req, res) => {
 
 router.post("/signup", async (req, res) => {
   try {
-    console.log("signup");
     const { firstName, lastName, email, password, recaptcha } = req.body;
     const userExists = await User.findOne({ email });
     if (userExists) {
@@ -78,14 +77,30 @@ router.post("/google", async (req, res) => {
       });
       await user.save();
 
-      console.log("saved");
       existingUser = user.toObject();
     }
 
     const authToken = generateToken(existingUser._id);
     return res.status(201).json({ userObj: existingUser, token: authToken });
   } catch (error) {
-    console.log("mpike catch")
+    return res.status(500).json({ error: error.message });
+  }
+});
+
+router.get("/history", async (req, res) => {
+  try {
+    const authToken = req.headers.authorization;
+    if (!authToken) {
+      return res
+        .status(401)
+        .json({ error: "No token" });
+    }
+    const token = authToken.split(" ")[1];
+    const decoded = verifyToken(token);
+    const userId = decoded.userId;
+    const user = await User.findById(userId).populate("projects");
+    return res.status(201).json({ projects: user.projects });
+  } catch (error) {
     return res.status(500).json({ error: error.message });
   }
 });

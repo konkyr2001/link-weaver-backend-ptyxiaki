@@ -19,6 +19,17 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    premium: {
+      type: Boolean,
+      default: null,
+    },
+    projects: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "Project",
+        default: null,
+      }
+    ]
   },
   {
     versionKey: false,

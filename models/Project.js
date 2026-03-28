@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const sharedProjectSchema = new mongoose.Schema(
+const projectSchema = new mongoose.Schema(
   {
     slug: {
       type: String,
@@ -24,7 +24,7 @@ const sharedProjectSchema = new mongoose.Schema(
     ],
     expiresAt: {
       type: Date,
-      required: true,
+      default: null,
       index: { expires: 0 },
     },
   },
@@ -34,4 +34,4 @@ const sharedProjectSchema = new mongoose.Schema(
   },
 );
 
-module.exports = mongoose.model("Shared Project", sharedProjectSchema);
+module.exports = mongoose.model("Project", projectSchema);

@@ -1,15 +1,17 @@
 const express = require("express");
 const router = express.Router();
-const SharedProject = require("../models/SharedProject");
+const User = require("../models/User");
+const Project = require("../models/Project");
 const { nanoid } = require("nanoid");
 const { verifyCaptcha } = require("../utils/verifyCaptcha");
+const { verifyToken } = require("../utils/token");
 
 router.get("/:slug", async (req, res) => {
   try {
     const slug = req.params.slug;
-    const shared = await SharedProject.findOne({ slug });
-    if (shared) {
-      return res.status(200).json(shared);
+    const project = await Project.findOne({ slug });
+    if (project) {
+      return res.status(200).json(project);
     }
     return res.status(404).json({ error: "Shared project not found" });
   } catch (error) {
@@ -19,13 +21,14 @@ router.get("/:slug", async (req, res) => {
 
 router.post("/", async (req, res) => {
   try {
-    const { projectName, urls, userId, captcha } = req.body;
+    const { projectName, urls, userToken, captcha } = req.body;
     if (!projectName || !urls || urls.length === 0) {
       return res.status(400).json({ error: "Invalid data passed. " });
     }
     const slug = nanoid(8);
     let expiresAt = null;
-    if (!userId) {
+    let userId = null;
+    if (!userToken) {
       const captchaResult = await verifyCaptcha(
         process.env.GENERATE_URL_RECAPTCHA_SECRET_KEY,
         captcha,
@@ -35,19 +38,23 @@ router.post("/", async (req, res) => {
       }
       expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
     } else {
-      // get user by id
-      // check if user has premium
-      // if user has premium = expireDate = null;
+      const decoded = verifyToken(userToken);
+      userId = decoded.userId;
+      expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
     }
-    const newSharedProject = new SharedProject({
+    const newProject = new Project({
       slug,
       projectName,
       urls,
       expiresAt,
       userId,
     });
-    await newSharedProject.save();
-    console.log("saved: ", newSharedProject);
+    await newProject.save();
+    if (userId) {
+      await User.findByIdAndUpdate(userId, {
+        $push: { projects: newProject._id }
+      });
+    }
     return res.status(201).json({ slug });
   } catch (error) {
     return res.status(500).json({ error: error.message });

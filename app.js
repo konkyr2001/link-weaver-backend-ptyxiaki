@@ -1,12 +1,25 @@
 const express = require("express");
 const cors = require("cors");
-
-const app = express();
-app.use(express.json());
-app.use(cors());
-
 const dotenv = require("dotenv");
 dotenv.config();
+
+const app = express();
+
+const allowedOrigins = [
+  `${process.env.LOCAL_FRONTEND_URL}`,
+  `${process.env.PRODUCTION_FRONTEND_URL}`,
+  `${process.env.GOOGLE_EXTENSION_URL}`,
+  `${process.env.PRODUCTION_VERCEL_FRONTEND_URL}`,
+  `${process.env.PTIXIAKI_PRODUCTION_FRONTEND_URL}`,
+  `${process.env.PTIXIAKI_PRODUCTION_VERCEL_FRONTEND_URL}`,
+];
+
+app.use(express.json());
+app.use(cors({
+  origin: allowedOrigins
+}));
+
+
 const MONGO_URL = process.env.MONGO_URL;
 const PORT = process.env.PORT || 8080;
 

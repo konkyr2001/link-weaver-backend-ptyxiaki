@@ -36,11 +36,11 @@ router.post("/", async (req, res) => {
       if (!captchaResult.success) {
         return res.status(400).json({ error: "Captcha verification failed" });
       }
-      expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      expiresAt = new Date(Date.now() + process.env.NO_ACCOUNT_PROJECT_EXPIRATION_DAY * 24 * 60 * 60 * 1000);
     } else {
       const decoded = verifyToken(userToken);
       userId = decoded.userId;
-      expiresAt = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000);
+      expiresAt = new Date(Date.now() + process.env.ACCOUNT_PROJECT_EXPIRATION_DAY * 24 * 60 * 60 * 1000);
     }
     const newProject = new Project({
       slug,

@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const userSchema = new mongoose.Schema(
   {
     firstName: {
-        type: String,
-        required: true,
+      type: String,
+      required: true,
     },
     lastName: {
       type: String,
-      required: true,
+      default: null,
     },
     email: {
       type: String,
@@ -23,13 +23,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: null,
     },
+    authProvider: {
+      type: String,
+      enum: ["local", "google"],
+      default: "local",
+    },
     projects: [
       {
         type: mongoose.Schema.Types.ObjectId,
         ref: "Project",
         default: null,
-      }
-    ]
+      },
+    ],
   },
   {
     versionKey: false,

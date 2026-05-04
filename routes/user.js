@@ -17,6 +17,9 @@ router.post("/login", async (req, res) => {
     if (!checkPassword) {
       return res.status(401).json({ error: "Invalid email or password " });
     }
+    if (user.authProvider === "google") {
+      return res.status(400).json({ error: "Please sign in with Google" });
+    }
     const userObj = user.toObject();
     delete userObj.password;
     const token = generateToken(user._id);
@@ -34,7 +37,7 @@ router.post("/signup", async (req, res) => {
       return res.status(400).json({ error: "User already exists" });
     }
     const recaptchaData = await verifyCaptcha(
-      process.env.SIGNUP_RECAPTCHA_SECRET_KEY,
+      process.env.RECAPTCHA_VISIBLE_SECRET_KEY,
       recaptcha,
     );
     if (!recaptchaData.success) {
@@ -46,8 +49,8 @@ router.post("/signup", async (req, res) => {
       firstName,
       lastName,
       email,
-
       password: hashedPassword,
+      authProvider: "local",
     });
     await newUser.save();
     const userObj = newUser.toObject();
@@ -74,6 +77,7 @@ router.post("/google", async (req, res) => {
         firstName: userCredentials.given_name,
         lastName: userCredentials.family_name,
         email: userCredentials.email,
+        authProvider: "google",
       });
       await user.save();
 
@@ -91,9 +95,7 @@ router.get("/history", async (req, res) => {
   try {
     const authToken = req.headers.authorization;
     if (!authToken) {
-      return res
-        .status(401)
-        .json({ error: "No token" });
+      return res.status(401).json({ error: "No token" });
     }
     const token = authToken.split(" ")[1];
     const decoded = verifyToken(token);
@@ -104,5 +106,140 @@ router.get("/history", async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 });
+
+router.get("/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyToken(token);
+
+    const user = await User.findById(decoded.userId).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    return res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/updateProfile", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyToken(token);
+
+    const { firstName, lastName } = req.body;
+    const user = await User.findByIdAndUpdate(
+      decoded.userId,
+      {
+        firstName,
+        lastName,
+      },
+      { new: true },
+    ).select("-password");
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    return res.status(200).json(user);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.put("/changePassword", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyToken(token);
+
+    const { currentPassword, newPassword } = req.body;
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.authProvider === "google") {
+      return res
+        .status(400)
+        .json({ error: "Google accounts cannot change password" });
+    }
+    const checkPassword = await bcrypt.compare(currentPassword, user.password);
+    if (!checkPassword) {
+      return res.status(401).json({ error: "Current password is incorrect" });
+    }
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedPassword;
+    await user.save();
+    return res.status(200).json({ message: "Password changed successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyToken(token);
+
+    const { password } = req.body;
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.authProvider === "google") {
+      return res
+        .status(400)
+        .json({ error: "Use Google delete route for this account" });
+    }
+    const checkPassword = await bcrypt.compare(password, user.password);
+    if (!checkPassword) {
+      return res.status(401).json({ error: "Password is incorrect" });
+    }
+    await Project.deleteMany({ userId: user._id });
+    await user.deleteOne();
+    return res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+router.delete("/google/me", async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyToken(token);
+    const user = await User.findById(decoded.userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.authProvider !== "google") {
+      return res.status(400).json({ message: "This is not a Google account" });
+    }
+    await Project.deleteMany({ userId: user._id });
+    await user.deleteOne();
+    return res.status(200).json({ message: "Account deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
 
 module.exports = router;

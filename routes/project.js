@@ -30,7 +30,7 @@ router.post("/", async (req, res) => {
     let userId = null;
     if (!userToken) {
       const captchaResult = await verifyCaptcha(
-        process.env.GENERATE_URL_RECAPTCHA_SECRET_KEY,
+        process.env.CAPTCHA_INVISIBLE_SECRET_KEY,
         captcha,
       );
       if (!captchaResult.success) {

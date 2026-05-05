@@ -19,10 +19,6 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: null,
     },
-    premium: {
-      type: Boolean,
-      default: null,
-    },
     authProvider: {
       type: String,
       enum: ["local", "google"],

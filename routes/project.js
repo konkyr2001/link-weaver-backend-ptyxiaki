@@ -42,6 +42,7 @@ router.post("/", async (req, res) => {
       userId = decoded.userId;
       expiresAt = new Date(Date.now() + process.env.ACCOUNT_PROJECT_EXPIRATION_DAY * 24 * 60 * 60 * 1000);
     }
+    console.log("Creating project with data:", { projectName, urls, userToken, captcha });
     const newProject = new Project({
       slug,
       projectName,
@@ -49,7 +50,9 @@ router.post("/", async (req, res) => {
       expiresAt,
       userId,
     });
+    console.log("Saving project to database...");
     await newProject.save();
+    console.log(`Project created with slug: ${slug}`);
     if (userId) {
       await User.findByIdAndUpdate(userId, {
         $push: { projects: newProject._id }
@@ -57,6 +60,7 @@ router.post("/", async (req, res) => {
     }
     return res.status(201).json({ slug });
   } catch (error) {
+    console.log(error.message)
     return res.status(500).json({ error: error.message });
   }
 });

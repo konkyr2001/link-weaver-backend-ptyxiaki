@@ -47,7 +47,7 @@ router.post("/", async (req, res) => {
       slug,
       projectName,
       urls,
-      expiresAt,
+      // expiresAt,
       userId,
     });
     console.log("Saving project to database...");
